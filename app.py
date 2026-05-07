@@ -134,17 +134,23 @@ if not st.session_state.eingeloggt:
 
 def save_depot():
     sb = get_supabase()
-    # Alles löschen, dann neu schreiben
-    sb.table("depot").delete().neq("id", "00000000-0000-0000-0000-000000000000").execute()
+    # Löscht alte Einträge, um Platz für neue zu machen
+    sb.table("depot").delete().neq("symbol", "NONE").execute()
+    
     if st.session_state.depot:
-        # RSI None-Werte bereinigen (Supabase mag kein NaN)
-        clean = []
+        payload = []
         for p in st.session_state.depot:
-            row = dict(p)
-            if row.get("RSI") is None or (isinstance(row.get("RSI"), float) and pd.isna(row["RSI"])):
-                row["RSI"] = None
-            clean.append(row)
-        sb.table("depot").insert(clean).execute()
+            row = {
+                "aktie": p["Aktie"],
+                "symbol": p["Symbol"],
+                "waehrung": p.get("Währung", "EUR"),
+                "kaufkurs": float(p["Kaufkurs (€)"]),
+                "aktueller_kurs": float(p["Aktueller Kurs (€)"]),
+                "anteile": float(p["Anteile"]),
+                "rsi": float(p["RSI"]) if p.get("RSI") and not pd.isna(p["RSI"]) else None
+            }
+            payload.append(row)
+        sb.table("depot").insert(payload).execute()
 
 def load_depot():
     try:
