@@ -9,7 +9,7 @@ import datetime
 import plotly.graph_objects as go
 import os
 # pip install supabase
-from supabase import create_client
+from supabase import create_client # type: ignore
 
 @st.cache_resource
 def get_supabase():
@@ -122,7 +122,7 @@ if not st.session_state.eingeloggt:
         st.markdown("<p style='color:#8e8e93;font-size:0.85rem;margin-top:-0.5rem;'>Bitte Kürzel eingeben</p>", unsafe_allow_html=True)
         kuerzel = st.text_input("", type="password", placeholder="Kürzel …", label_visibility="collapsed")
         if st.button("Eintreten", use_container_width=True):
-            if kuerzel == "Start123":
+            if kuerzel == "bwb":
                 st.session_state.eingeloggt = True
                 st.rerun()
             else:
