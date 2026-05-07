@@ -563,17 +563,36 @@ if st.session_state.page == "Home":
         if st.session_state.depot:
             if st.button("Aktualisieren", use_container_width=True, type="primary"):
                 with st.spinner("Kurse werden aktualisiert …"):
-                    for p in st.session_state.depot:
+                    # --- IN DEINER AKTUALISIEREN-SCHLEIFE ---
+                    for i, p in enumerate(st.session_state.depot):
                         try:
-                            t          = yf.Ticker(p['Symbol'])
-                            currency   = p.get('Währung', 'EUR')
-                            eur_factor = get_eur_rate(currency)
-                            p['Aktueller Kurs (€)'] = t.history(period="1d")['Close'].iloc[-1] * eur_factor
-                            p['RSI'] = calculate_rsi(t.history(period="3mo"))
-                        except:
-                            pass
+                            # Wir nutzen .get(), um sicherzugehen, dass wir den Wert finden, 
+                            # egal ob er groß oder klein geschrieben ist.
+                            ticker_symbol = p.get('Symbol') or p.get('symbol')
+                            waehrung = p.get('Währung') or p.get('waehrung') or 'EUR'
+                            
+                            t = yf.Ticker(ticker_symbol)
+                            eur_factor = get_eur_rate(waehrung)
+                            
+                            # Den neuen Kurs berechnen
+                            neuer_kurs_eur = t.history(period="1d")['Close'].iloc[-1] * eur_factor
+                            
+                            # WICHTIG: Wir schreiben den Wert in BEIDE Schlüssel, 
+                            # damit sowohl die Datenbank als auch die Website-Tabelle zufrieden sind.
+                            p['Aktueller Kurs (€)'] = neuer_kurs_eur
+                            p['aktueller_kurs'] = neuer_kurs_eur
+                            
+                            # RSI aktualisieren
+                            neuer_rsi = calculate_rsi(t.history(period="3mo"))
+                            p['RSI'] = neuer_rsi
+                            p['rsi'] = neuer_rsi
+                            
+                        except Exception as e:
+                            st.warning(f"Konnte {p.get('Aktie')} nicht aktualisieren: {e}")
+
+                    # Nach der Schleife alles in Supabase speichern
                     save_depot()
-                st.rerun()
+                    st.rerun()
 
     if st.session_state.depot:
         hs = "font-size:0.72rem;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:#8e8e93;margin:0 0 0.3rem 0;"
