@@ -149,10 +149,25 @@ def save_depot():
 def load_depot():
     try:
         sb = get_supabase()
+        # Wir holen alle Zeilen aus der Tabelle "depot"
         res = sb.table("depot").select("*").execute()
-        # "id"-Spalte von Supabase wieder entfernen
-        return [{k: v for k, v in r.items() if k != "id"} for r in res.data]
-    except:
+        
+        loaded = []
+        for r in res.data:
+            # Hier übersetzen wir die Datenbank-Namen (klein) 
+            # zurück in deine Anzeige-Namen (groß/mit Symbolen)
+            loaded.append({
+                "Aktie": r.get("aktie"),
+                "Symbol": r.get("symbol"),
+                "Währung": r.get("waehrung"),
+                "Kaufkurs (€)": r.get("kaufkurs"),
+                "Aktueller Kurs (€)": r.get("aktueller_kurs"),
+                "Anteile": r.get("anteile"),
+                "RSI": r.get("rsi")
+            })
+        return loaded
+    except Exception as e:
+        # Falls die Tabelle noch ganz leer ist, geben wir eine leere Liste zurück
         return []
 
 if "depot" not in st.session_state:
