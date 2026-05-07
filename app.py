@@ -133,36 +133,39 @@ if not st.session_state.eingeloggt:
 
 
 def save_depot():
-    sb = get_supabase()
-    # Löscht alte Einträge, um Platz für neue zu machen
-    sb.table("depot").delete().neq("symbol", "NONE").execute()
-    
-    if st.session_state.depot:
-        payload = []
-        for p in st.session_state.depot:
-            row = {
-                "aktie": p["Aktie"],
-                "symbol": p["Symbol"],
-                "waehrung": p.get("Währung", "EUR"),
-                "kaufkurs": float(p["Kaufkurs (€)"]),
-                "aktueller_kurs": float(p["Aktueller Kurs (€)"]),
-                "anteile": float(p["Anteile"]),
-                "rsi": float(p["RSI"]) if p.get("RSI") and not pd.isna(p["RSI"]) else None
-            }
-            payload.append(row)
-        sb.table("depot").insert(payload).execute()
+    try:
+        sb = get_supabase()
+        # WICHTIG: Wir löschen alles, um den aktuellen Stand aus der Session zu speichern
+        sb.table("depot").delete().neq("symbol", "NONE").execute()
+        
+        if st.session_state.depot:
+            clean_payload = []
+            for p in st.session_state.depot:
+                # Wir mappen die hübschen UI-Namen auf die kleingeschriebenen DB-Spalten
+                row = {
+                    "aktie": p.get("Aktie"),
+                    "symbol": p.get("Symbol"),
+                    "waehrung": p.get("Währung", "EUR"),
+                    "kaufkurs": float(p.get("Kaufkurs (€)", 0)),
+                    "aktueller_kurs": float(p.get("Aktueller Kurs (€)", 0)),
+                    "anteile": float(p.get("Anteile", 0)),
+                    "rsi": float(p["RSI"]) if p.get("RSI") is not None and not pd.isna(p["RSI"]) else None
+                }
+                clean_payload.append(row)
+            sb.table("depot").insert(clean_payload).execute()
+    except Exception as e:
+        st.error(f"Fehler beim Speichern in Supabase: {e}")
 
 def load_depot():
     try:
         sb = get_supabase()
-        # Wir holen alle Zeilen aus der Tabelle "depot"
         res = sb.table("depot").select("*").execute()
         
-        loaded = []
+        loaded_data = []
         for r in res.data:
-            # Hier übersetzen wir die Datenbank-Namen (klein) 
-            # zurück in deine Anzeige-Namen (groß/mit Symbolen)
-            loaded.append({
+            # WICHTIG: Hier füllen wir die "Schubladen", die dein restlicher Code sucht!
+            # Wenn hier 'Aktueller Kurs (€)' steht, findet Zeile 583 den Wert auch wieder.
+            loaded_data.append({
                 "Aktie": r.get("aktie"),
                 "Symbol": r.get("symbol"),
                 "Währung": r.get("waehrung"),
@@ -171,9 +174,9 @@ def load_depot():
                 "Anteile": r.get("anteile"),
                 "RSI": r.get("rsi")
             })
-        return loaded
+        return loaded_data
     except Exception as e:
-        # Falls die Tabelle noch ganz leer ist, geben wir eine leere Liste zurück
+        # Bei Fehlern geben wir eine leere Liste zurück, damit die App nicht abstürzt
         return []
 
 if "depot" not in st.session_state:
