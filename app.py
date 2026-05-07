@@ -8,7 +8,15 @@ import json
 import datetime
 import plotly.graph_objects as go
 import os
+# pip install supabase
+from supabase import create_client
 
+@st.cache_resource
+def get_supabase():
+    return create_client(
+        st.secrets["SUPABASE_URL"],
+        st.secrets["SUPABASE_KEY"]
+    )
 # --- KONFIGURATION & STYLING ---
 st.set_page_config(page_title="Portfolio · Dashboard", layout="wide", initial_sidebar_state="collapsed")
 
@@ -122,17 +130,30 @@ if not st.session_state.eingeloggt:
     st.stop()
 
 
-# ── Datenspeicherung ──
-CSV_FILE = "musterdepot.csv"
+
 
 def save_depot():
+    sb = get_supabase()
+    # Alles löschen, dann neu schreiben
+    sb.table("depot").delete().neq("id", "00000000-0000-0000-0000-000000000000").execute()
     if st.session_state.depot:
-        pd.DataFrame(st.session_state.depot).to_csv(CSV_FILE, index=False)
+        # RSI None-Werte bereinigen (Supabase mag kein NaN)
+        clean = []
+        for p in st.session_state.depot:
+            row = dict(p)
+            if row.get("RSI") is None or (isinstance(row.get("RSI"), float) and pd.isna(row["RSI"])):
+                row["RSI"] = None
+            clean.append(row)
+        sb.table("depot").insert(clean).execute()
 
 def load_depot():
-    if os.path.exists(CSV_FILE):
-        return pd.read_csv(CSV_FILE).to_dict('records')
-    return []
+    try:
+        sb = get_supabase()
+        res = sb.table("depot").select("*").execute()
+        # "id"-Spalte von Supabase wieder entfernen
+        return [{k: v for k, v in r.items() if k != "id"} for r in res.data]
+    except:
+        return []
 
 if "depot" not in st.session_state:
     st.session_state.depot = load_depot()
@@ -199,6 +220,20 @@ def get_fear_and_greed_data():
             return 50, "Neutral", False
 
 @st.cache_data(ttl=300)
+@st.cache_data(ttl=300)
+def get_eur_rate(from_currency):
+    """Gibt den Faktor zurück, mit dem ein Kurs in from_currency in EUR umgerechnet wird."""
+    if not from_currency or from_currency == "EUR":
+        return 1.0
+    pence = from_currency == "GBp"          # Londoner Tickers: Pence statt Pfund
+    base  = "GBP" if pence else from_currency
+    try:
+        pair = f"EUR{base}=X"               # z. B. EURUSD=X, EURGBP=X
+        rate = yf.Ticker(pair).history(period="1d")['Close'].iloc[-1]
+        factor = 1 / rate                   # EUR pro 1 Einheit Fremdwährung
+        return factor / 100 if pence else factor
+    except:
+        return 1.0
 def get_market_indices():
     indices = {"DAX": "^GDAXI", "S&P 500": "^GSPC", "MSCI World": "EUNL.DE"}
     data = {}
@@ -474,13 +509,19 @@ if st.session_state.page == "Home":
             if st.button("Kaufen", use_container_width=True):
                 try:
                     with st.spinner("Daten werden geladen …"):
-                        t     = yf.Ticker(sel['symbol'])
-                        price = t.history(period="1d")['Close'].iloc[-1]
+                        t          = yf.Ticker(sel['symbol'])
+                        currency   = t.fast_info.get('currency', 'EUR')
+                        eur_factor = get_eur_rate(currency)
+                        price_nat  = t.history(period="1d")['Close'].iloc[-1]
+                        price_eur  = price_nat * eur_factor
                         st.session_state.depot.append({
-                            "Aktie": sel['name'], "Symbol": sel['symbol'],
-                            "Kaufkurs (€)": price, "Aktueller Kurs (€)": price,
-                            "Anteile": 1000 / price,
-                            "RSI": calculate_rsi(t.history(period="3mo"))
+                            "Aktie":            sel['name'],
+                            "Symbol":           sel['symbol'],
+                            "Währung":          currency,          # ← neu gespeichert
+                            "Kaufkurs (€)":     price_eur,
+                            "Aktueller Kurs (€)": price_eur,
+                            "Anteile":          1000 / price_eur,
+                            "RSI":              calculate_rsi(t.history(period="3mo"))
                         })
                         save_depot()
                     st.success(f"{sel['name']} wurde ins Depot aufgenommen.")
@@ -500,10 +541,13 @@ if st.session_state.page == "Home":
                 with st.spinner("Kurse werden aktualisiert …"):
                     for p in st.session_state.depot:
                         try:
-                            t = yf.Ticker(p['Symbol'])
-                            p['Aktueller Kurs (€)'] = t.history(period="1d")['Close'].iloc[-1]
+                            t          = yf.Ticker(p['Symbol'])
+                            currency   = p.get('Währung', 'EUR')
+                            eur_factor = get_eur_rate(currency)
+                            p['Aktueller Kurs (€)'] = t.history(period="1d")['Close'].iloc[-1] * eur_factor
                             p['RSI'] = calculate_rsi(t.history(period="3mo"))
-                        except: pass
+                        except:
+                            pass
                     save_depot()
                 st.rerun()
 
@@ -547,7 +591,7 @@ if st.session_state.page == "Home":
                     <p style='{cell}'>
                         <span style='background:#f0faf6;color:#2d7a5f;border-radius:6px;
                                      padding:3px 8px;font-size:0.84rem;font-weight:600;'>
-                            {investiert:,.0f} €
+                            {f"{investiert:,.0f}".replace(',', '.')} €
                         </span>
                     </p>
                 </div>""", unsafe_allow_html=True)
@@ -577,7 +621,7 @@ if st.session_state.page == "Home":
                         margin-top:1rem;display:flex;align-items:center;gap:2.5rem;">
                 <div>
                     <p style="font-size:0.72rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#8e8e93;margin:0;">Gesamtinvestiert</p>
-                    <p style="font-size:1.6rem;font-weight:600;color:#1d1d1f;letter-spacing:-0.02em;margin:0.2rem 0 0 0;">{total_invested:,.0f} €</p>
+                    <p style="font-size:1.6rem;font-weight:600;color:#1d1d1f;letter-spacing:-0.02em;margin:0.2rem 0 0 0;">{f"{total_invested:,.0f} ".replace(',', '.')}€</p>
                 </div>
                 <div>
                     <p style="font-size:0.72rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#8e8e93;margin:0;">Gesamtergebnis</p>
