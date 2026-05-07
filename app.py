@@ -7,9 +7,7 @@ import urllib.parse
 import json
 import datetime
 import plotly.graph_objects as go
-import os
-# pip install supabase
-from supabase import create_client 
+from supabase import create_client
 
 @st.cache_resource
 def get_supabase():
@@ -17,38 +15,31 @@ def get_supabase():
         st.secrets["SUPABASE_URL"],
         st.secrets["SUPABASE_KEY"]
     )
+
 # --- KONFIGURATION & STYLING ---
 st.set_page_config(page_title="Portfolio · Dashboard", layout="wide", initial_sidebar_state="collapsed")
-
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap');
-
     html, body, [class*="css"] {
         font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
     }
     .stApp { background-color: #f0f0f2; }
-
     header[data-testid="stHeader"]          { display: none !important; }
     [data-testid="stToolbar"]               { display: none !important; }
     [data-testid="stDecoration"]            { display: none !important; }
     #MainMenu                               { display: none !important; }
     footer                                  { display: none !important; }
-
-    /* ── Sidebar ── */
     [data-testid="stSidebar"] {
         background: #ffffff !important;
         border-right: 1px solid rgba(0,0,0,0.07) !important;
     }
-    /* Alle nativen Sidebar-Toggle-Buttons verstecken — eigener JS-Button ersetzt sie */
     [data-testid="collapsedControl"],
     [data-testid="stSidebarCollapsedControl"],
     [data-testid="stSidebarCollapseButton"] {
         visibility: hidden !important;
         pointer-events: none !important;
     }
-
-    /* ── Sidebar-Buttons als unsichtbare Klick-Proxies */
     [data-testid="stSidebar"] .stButton > button {
         background: transparent !important;
         border: none !important;
@@ -61,8 +52,6 @@ st.markdown("""
         opacity: 0 !important;
         cursor: pointer !important;
     }
-
-    /* ── Topbar ── */
     .topbar {
         position: fixed; top: 0; left: 0; right: 0; height: 54px;
         background: rgba(255,255,255,0.82);
@@ -76,21 +65,16 @@ st.markdown("""
         margin-left: auto; font-size: 0.71rem; font-weight: 600;
         letter-spacing: 0.07em; text-transform: uppercase; color: #8e8e93;
     }
-
     .block-container { padding: 5rem 3rem 4rem 3rem !important; max-width: 1400px; }
-
     h1 { font-size: 2rem !important; font-weight: 700 !important; letter-spacing: -0.04em !important; color: #1d1d1f !important; margin-bottom: 0.1rem !important; }
     h2, h3 { font-weight: 600 !important; letter-spacing: -0.02em !important; color: #1d1d1f !important; }
     p, span, label, div { color: #3a3a3c; }
-
     [data-testid="stMetric"] { background: #fff; border-radius: 16px; padding: 1.4rem 1.6rem !important; box-shadow: 0 1px 4px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04); }
     [data-testid="stMetricLabel"] { font-size: 0.74rem !important; font-weight: 600 !important; letter-spacing: 0.07em !important; text-transform: uppercase !important; color: #8e8e93 !important; }
     [data-testid="stMetricValue"] { font-size: 2rem !important; font-weight: 700 !important; letter-spacing: -0.03em !important; color: #1d1d1f !important; }
     [data-testid="stMetricDelta"] { font-size: 0.85rem !important; font-weight: 500 !important; }
-
     .stButton > button { background: #ffffff !important; color: #1d1d1f !important; border: 1px solid #d1d1d6 !important; border-radius: 10px !important; font-family: 'DM Sans', sans-serif !important; font-size: 0.875rem !important; font-weight: 500 !important; padding: 0.55rem 1.4rem !important; box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important; transition: all 0.15s ease !important; }
     .stButton > button:hover { background: #f5f5f7 !important; border-color: #b0b0b8 !important; }
-
     [data-testid="stBaseButton-primary"], button[kind="primary"], .stButton > button[kind="primary"] {
         background: #2c2c2e !important; color: #ffffff !important; border: 1px solid #2c2c2e !important;
         border-radius: 10px !important; font-family: 'DM Sans', sans-serif !important;
@@ -99,7 +83,6 @@ st.markdown("""
     }
     [data-testid="stBaseButton-primary"]:hover, button[kind="primary"]:hover { background: #3d3d3f !important; border-color: #3d3d3f !important; color: #ffffff !important; }
     [data-testid="stBaseButton-primary"] p, [data-testid="stBaseButton-primary"] span, button[kind="primary"] p, button[kind="primary"] span { color: #ffffff !important; }
-
     .stTextInput > div > div > input { background: #fff !important; border: 1px solid #e5e5ea !important; border-radius: 10px !important; font-family: 'DM Sans', sans-serif !important; font-size: 0.9rem !important; color: #1d1d1f !important; padding: 0.6rem 1rem !important; }
     .stTextInput > div > div > input:focus { border-color: #2c2c2e !important; box-shadow: 0 0 0 3px rgba(44,44,46,0.1) !important; }
     .stSelectbox > div > div { background: #fff !important; border: 1px solid #e5e5ea !important; border-radius: 10px !important; }
@@ -108,7 +91,6 @@ st.markdown("""
     .stAlert { border-radius: 12px !important; font-size: 0.9rem !important; }
     </style>
 """, unsafe_allow_html=True)
-
 
 # ── Passwort-Schutz ──
 if "eingeloggt" not in st.session_state:
@@ -129,61 +111,55 @@ if not st.session_state.eingeloggt:
                 st.error("Falsches Kürzel.")
     st.stop()
 
-
-
+# ── Datenspeicherung (Supabase) ──
+# EINHEITLICHE SCHLÜSSEL: Im Session-State und überall im Code immer diese Namen verwenden:
+# "Aktie", "Symbol", "Währung", "Kaufkurs (€)", "Aktueller Kurs (€)", "Anteile", "RSI"
+# In Supabase werden sie als: aktie, symbol, waehrung, kaufkurs, aktueller_kurs, anteile, rsi gespeichert.
 
 def save_depot():
     try:
         sb = get_supabase()
-        # WICHTIG: Wir löschen alles, um den aktuellen Stand aus der Session zu speichern
         sb.table("depot").delete().neq("symbol", "NONE").execute()
-        
         if st.session_state.depot:
-            clean_payload = []
+            payload = []
             for p in st.session_state.depot:
-                # Wir mappen die hübschen UI-Namen auf die kleingeschriebenen DB-Spalten
-                row = {
-                    "aktie": p.get("Aktie"),
-                    "symbol": p.get("Symbol"),
-                    "waehrung": p.get("Währung", "EUR"),
-                    "kaufkurs": float(p.get("Kaufkurs (€)", 0)),
+                rsi_val = p.get("RSI")
+                payload.append({
+                    "aktie":          p.get("Aktie"),
+                    "symbol":         p.get("Symbol"),
+                    "waehrung":       p.get("Währung", "EUR"),
+                    "kaufkurs":       float(p.get("Kaufkurs (€)", 0)),
                     "aktueller_kurs": float(p.get("Aktueller Kurs (€)", 0)),
-                    "anteile": float(p.get("Anteile", 0)),
-                    "rsi": float(p["RSI"]) if p.get("RSI") is not None and not pd.isna(p["RSI"]) else None
-                }
-                clean_payload.append(row)
-            sb.table("depot").insert(clean_payload).execute()
+                    "anteile":        float(p.get("Anteile", 0)),
+                    "rsi":            float(rsi_val) if rsi_val is not None and not pd.isna(rsi_val) else None
+                })
+            sb.table("depot").insert(payload).execute()
     except Exception as e:
-        st.error(f"Fehler beim Speichern in Supabase: {e}")
+        st.error(f"Fehler beim Speichern: {e}")
 
 def load_depot():
     try:
         sb = get_supabase()
         res = sb.table("depot").select("*").execute()
-        
-        loaded_data = []
+        result = []
         for r in res.data:
-            # WICHTIG: Hier füllen wir die "Schubladen", die dein restlicher Code sucht!
-            # Wenn hier 'Aktueller Kurs (€)' steht, findet Zeile 583 den Wert auch wieder.
-            loaded_data.append({
-                "Aktie": r.get("aktie"),
-                "Symbol": r.get("symbol"),
-                "Währung": r.get("waehrung"),
-                "Kaufkurs (€)": r.get("kaufkurs"),
-                "Aktueller Kurs (€)": r.get("aktueller_kurs"),
-                "Anteile": r.get("anteile"),
-                "RSI": r.get("rsi")
+            result.append({
+                "Aktie":              r.get("aktie"),
+                "Symbol":             r.get("symbol"),
+                "Währung":            r.get("waehrung", "EUR"),
+                "Kaufkurs (€)":       r.get("kaufkurs", 0),
+                "Aktueller Kurs (€)": r.get("aktueller_kurs", 0),
+                "Anteile":            r.get("anteile", 0),
+                "RSI":                r.get("rsi")
             })
-        return loaded_data
-    except Exception as e:
-        # Bei Fehlern geben wir eine leere Liste zurück, damit die App nicht abstürzt
+        return result
+    except:
         return []
 
 if "depot" not in st.session_state:
     st.session_state.depot = load_depot()
 if "page" not in st.session_state:
     st.session_state.page = "Home"
-
 
 # ── Hilfsfunktionen ──
 MONATE_DE = ["Januar","Februar","März","April","Mai","Juni",
@@ -205,22 +181,32 @@ def calculate_rsi(data, window=14):
     return 100 - (100 / (1 + rs)).iloc[-1]
 
 @st.cache_data(ttl=300)
+def get_eur_rate(from_currency):
+    if not from_currency or from_currency == "EUR":
+        return 1.0
+    pence = from_currency == "GBp"
+    base  = "GBP" if pence else from_currency
+    try:
+        pair   = f"EUR{base}=X"
+        rate   = yf.Ticker(pair).history(period="1d")['Close'].iloc[-1]
+        factor = 1 / rate
+        return factor / 100 if pence else factor
+    except:
+        return 1.0
+
+@st.cache_data(ttl=300)
 def get_fear_and_greed_data():
-    urls = [
-        "https://production.dataviz.cnn.io/index/fearandgreed/graphdata",
-        "https://fear-and-greed-index.p.rapidapi.com/v1/fgi",   # Fallback-Endpunkt
-    ]
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7',
         'Referer': 'https://edition.cnn.com/',
         'Origin': 'https://edition.cnn.com',
     }
     try:
-        req = urllib.request.Request(urls[0], headers=headers)
+        req = urllib.request.Request(
+            "https://production.dataviz.cnn.io/index/fearandgreed/graphdata", headers=headers)
         with urllib.request.urlopen(req, timeout=10) as r:
-            d = json.loads(r.read().decode())
+            d      = json.loads(r.read().decode())
             score  = d['fear_and_greed']['score']
             rating = d['fear_and_greed']['rating'].lower()
             if "extreme fear" in rating:    status = "Extreme Angst"
@@ -230,7 +216,6 @@ def get_fear_and_greed_data():
             else:                           status = "Neutral"
             return round(score), status, False
     except:
-        # VIX-Proxy als stiller Fallback – kein Hinweis anzeigen
         try:
             vix   = yf.Ticker("^VIX").history(period="1d")['Close'].iloc[-1]
             score = max(0, min(100, 100 - ((vix - 10) / (35 - 10)) * 100))
@@ -239,25 +224,11 @@ def get_fear_and_greed_data():
             elif score < 55: status = "Neutral"
             elif score < 75: status = "Gier"
             else:            status = "Extreme Gier"
-            return round(score), status, False   # False = kein Hinweis
+            return round(score), status, False
         except:
             return 50, "Neutral", False
 
 @st.cache_data(ttl=300)
-@st.cache_data(ttl=300)
-def get_eur_rate(from_currency):
-    """Gibt den Faktor zurück, mit dem ein Kurs in from_currency in EUR umgerechnet wird."""
-    if not from_currency or from_currency == "EUR":
-        return 1.0
-    pence = from_currency == "GBp"          # Londoner Tickers: Pence statt Pfund
-    base  = "GBP" if pence else from_currency
-    try:
-        pair = f"EUR{base}=X"               # z. B. EURUSD=X, EURGBP=X
-        rate = yf.Ticker(pair).history(period="1d")['Close'].iloc[-1]
-        factor = 1 / rate                   # EUR pro 1 Einheit Fremdwährung
-        return factor / 100 if pence else factor
-    except:
-        return 1.0
 def get_market_indices():
     indices = {"DAX": "^GDAXI", "S&P 500": "^GSPC", "MSCI World": "EUNL.DE"}
     data = {}
@@ -265,12 +236,16 @@ def get_market_indices():
         try:
             ticker = yf.Ticker(symbol)
             hist   = ticker.history(period="5d", interval="15m")
-            hist   = hist[hist.index.dayofweek < 5].between_time("07:00", "23:00")
+            hist   = hist[hist.index.dayofweek < 5]   # nur Wochentage, kein Uhrzeitfilter
             if not hist.empty and len(hist) >= 2:
-                curr = hist['Close'].iloc[-1]
-                prev = ticker.history(period="2d")['Close'].iloc[-2]
-                data[name] = {"current": curr, "delta": ((curr-prev)/prev)*100,
+                curr  = hist['Close'].iloc[-1]
+                daily = ticker.history(period="5d").dropna()
+                daily = daily[daily.index.dayofweek < 5]
+                prev  = daily['Close'].iloc[-2] if len(daily) >= 2 else curr
+                data[name] = {"current": curr, "delta": ((curr - prev) / prev) * 100,
                               "history": hist['Close'].reset_index(drop=True)}
+            else:
+                data[name] = None
         except:
             data[name] = None
     return data
@@ -289,16 +264,16 @@ def create_gauge(score, status, is_proxy):
         number={'font': {'size': 64, 'color': '#1d1d1f', 'family': 'DM Sans'}},
         title={'text': f"<b>{status}{'  ¹' if is_proxy else ''}</b>",
                'font': {'size': 15, 'color': '#3a3a3c', 'family': 'DM Sans'}},
-        gauge={'axis': {'range': [0,100], 'tickvals': [0,25,50,75,100],
-                        'ticktext': ['0','25','50','75','100'],
-                        'tickfont': {'size':10,'color':'#8e8e93'}, 'tickwidth':1, 'tickcolor':'#e5e5ea'},
+        gauge={'axis': {'range': [0, 100], 'tickvals': [0, 25, 50, 75, 100],
+                        'ticktext': ['0', '25', '50', '75', '100'],
+                        'tickfont': {'size': 10, 'color': '#8e8e93'}, 'tickwidth': 1, 'tickcolor': '#e5e5ea'},
                'bar': {'color': c, 'thickness': 0.55}, 'bgcolor': '#f5f5f7', 'borderwidth': 0,
-               'steps': [{'range': [0,100], 'color': '#e5e5ea'}],
+               'steps': [{'range': [0, 100], 'color': '#e5e5ea'}],
                'threshold': {'line': {'color': c, 'width': 3}, 'thickness': 0.75, 'value': score}}
     ))
-    fig.update_layout(height=260, margin=dict(l=20,r=20,t=50,b=10),
+    fig.update_layout(height=260, margin=dict(l=20, r=20, t=50, b=10),
                       paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-                      font={'family':'DM Sans'})
+                      font={'family': 'DM Sans'})
     return fig
 
 def create_mini_chart(history, delta):
@@ -306,20 +281,26 @@ def create_mini_chart(history, delta):
     fc = "rgba(58,158,126,0.10)" if delta >= 0 else "rgba(224,92,92,0.10)"
     v  = history.dropna().values
     if len(v) > 1:
-        pad  = max((v.max()-v.min())*0.15, v.mean()*0.005)
-        rng  = [v.min()-pad, v.max()+pad]
+        pad = max((v.max() - v.min()) * 0.15, v.mean() * 0.005)
+        rng = [v.min() - pad, v.max() + pad]
     else:
         rng = [None, None]
-    fig = go.Figure(go.Scatter(x=list(range(len(v))), y=v, mode='lines', fill='tozeroy',
-                               fillcolor=fc, line=dict(color=lc, width=2, shape='spline'),
-                               hovertemplate='%{y:,.0f}<extra></extra>'))
-    fig.update_layout(height=90, margin=dict(l=0,r=0,t=4,b=0),
+    baseline = [v.min()] * len(v)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=list(range(len(v))), y=baseline,
+                             mode='lines', line=dict(width=0),
+                             showlegend=False, hoverinfo='skip',
+                             name=''))
+    fig.add_trace(go.Scatter(x=list(range(len(v))), y=v, mode='lines', fill='tonexty',
+                             fillcolor=fc, line=dict(color=lc, width=2, shape='spline'),
+                             showlegend=False, name='',
+                             hovertemplate='%{y:,.0f}<extra></extra>'))
+    fig.update_layout(height=90, margin=dict(l=0, r=0, t=4, b=0),
                       xaxis=dict(visible=False, showgrid=False),
                       yaxis=dict(visible=False, showgrid=False, range=rng),
                       plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
-                      hovermode='x unified')
+                      hovermode='x unified', showlegend=False)
     return fig
-
 
 # ─────────────────────────────────────────────
 # SIDEBAR
@@ -340,14 +321,12 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
     nav_items = [("🏠", "Home"), ("🌤️", "Wetter"), ("👥", "Über uns")]
-
     for icon, label in nav_items:
-        active  = st.session_state.page == label
-        bg      = "#f0f0f2" if active else "transparent"
-        weight  = "600" if active else "500"
-        color   = "#1d1d1f" if active else "#3a3a3c"
-        border  = "border-left:3px solid #3a9e7e;" if active else "border-left:3px solid transparent;"
-
+        active = st.session_state.page == label
+        bg     = "#f0f0f2" if active else "transparent"
+        weight = "600" if active else "500"
+        color  = "#1d1d1f" if active else "#3a3a3c"
+        border = "border-left:3px solid #3a9e7e;" if active else "border-left:3px solid transparent;"
         st.markdown(f"""
             <div style="margin:2px 0.5rem;">
                 <div style="background:{bg};border-radius:10px;{border}
@@ -358,13 +337,11 @@ with st.sidebar:
                 </div>
             </div>
         """, unsafe_allow_html=True)
-
         if st.button(label, key=f"nav_{label}", use_container_width=True):
             st.session_state.page = label
             st.rerun()
 
-
-# ── Topbar mit integriertem Hamburger-Button ──
+# ── Topbar ──
 now = datetime.datetime.now()
 st.markdown(f"""
     <div class="topbar">
@@ -380,7 +357,6 @@ st.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
-# ── Hamburger JS via components (einzige zuverlässige Methode in Streamlit) ──
 components.html("""
 <script>
 (function() {
@@ -389,14 +365,12 @@ components.html("""
         '[data-testid="collapsedControl"] button',
         '[data-testid="stSidebarCollapsedControl"] button'
     ];
-
     function triggerToggle(doc) {
         for (var i = 0; i < SEL.length; i++) {
             var btn = doc.querySelector(SEL[i]);
             if (btn) { btn.click(); return; }
         }
     }
-
     function attachBtn(doc, id, bgDefault, bgHover) {
         var el = doc.getElementById(id);
         if (!el) return false;
@@ -407,14 +381,12 @@ components.html("""
         el.addEventListener('mouseleave', function() { this.style.background = bgDefault; });
         return true;
     }
-
     function poll() {
         try {
             var doc = window.parent.document;
-            var hamOk   = attachBtn(doc, '_ham',       '#ffffff', '#f5f5f7');
-            var closeOk = attachBtn(doc, '_close_ham', '#f5f5f7', '#e8e8ea');
+            var hamOk = attachBtn(doc, '_ham', '#ffffff', '#f5f5f7');
+            attachBtn(doc, '_close_ham', '#f5f5f7', '#e8e8ea');
             if (!hamOk) setTimeout(poll, 150);
-            // Keep polling for _close_ham (appears/disappears with sidebar)
             setTimeout(function reattach() {
                 try { attachBtn(window.parent.document, '_close_ham', '#f5f5f7', '#e8e8ea'); }
                 catch(e) {}
@@ -426,7 +398,6 @@ components.html("""
 })();
 </script>
 """, height=0, scrolling=False)
-
 
 # ═══════════════════════════════════════════════════════════
 # HOME
@@ -456,18 +427,18 @@ if st.session_state.page == "Home":
             st.caption("¹ Berechnet aus VIX (CNN-Daten nicht verfügbar)")
 
     with col_indices:
-        market_data  = get_market_indices()
-        idx_cols     = st.columns(3)
-        index_names  = ["DAX", "S&P 500", "MSCI World"]
-        currencies   = ["EUR", "USD", "EUR"]
+        market_data = get_market_indices()
+        idx_cols    = st.columns(3)
+        index_names = ["DAX", "S&P 500", "MSCI World"]
+        currencies  = ["EUR", "USD", "EUR"]
 
         for name, currency, col in zip(index_names, currencies, idx_cols):
             m = market_data.get(name)
             with col:
-                dv  = m['delta'] if m else 0
-                dc  = "#3a9e7e" if dv >= 0 else "#e05c5c"
-                ds  = "+" if dv >= 0 else ""
-                kf  = f"{m['current']:,.0f}".replace(',', '.') if m else "–"
+                dv = m['delta'] if m else 0
+                dc = "#3a9e7e" if dv >= 0 else "#e05c5c"
+                ds = "+" if dv >= 0 else ""
+                kf = f"{m['current']:,.0f}".replace(',', '.') if m else "–"
                 st.markdown(f"""
                     <div style="background:#fff;border-radius:20px;padding:1.3rem 1.4rem 0.8rem 1.4rem;
                                 box-shadow:0 1px 3px rgba(0,0,0,0.06),0 0 0 1px rgba(0,0,0,0.04);">
@@ -479,7 +450,8 @@ if st.session_state.page == "Home":
                 """, unsafe_allow_html=True)
                 if m:
                     st.plotly_chart(create_mini_chart(m['history'], m['delta']),
-                                    use_container_width=True, config={'displayModeBar': False}, key=f"chart_{name}")
+                                    use_container_width=True, config={'displayModeBar': False},
+                                    key=f"chart_{name}")
 
     st.divider()
 
@@ -491,7 +463,6 @@ if st.session_state.page == "Home":
             <p style="color:#8e8e93;font-size:0.88rem;margin:0.3rem 0 0 0;">Fiktive Käufe · je 1.000 €</p>
         </div>
     """, unsafe_allow_html=True)
-
     st.markdown("<br>", unsafe_allow_html=True)
 
     col_input, col_btn = st.columns([3, 1])
@@ -509,7 +480,7 @@ if st.session_state.page == "Home":
             with urllib.request.urlopen(req) as res:
                 data = json.loads(res.read().decode())
                 st.session_state.results = [
-                    {"name": q['shortname'], "symbol": q['symbol'], "exchange": q.get('exchDisp','–')}
+                    {"name": q['shortname'], "symbol": q['symbol'], "exchange": q.get('exchDisp', '–')}
                     for q in data.get('quotes', []) if 'symbol' in q and 'shortname' in q
                 ]
         except:
@@ -520,7 +491,7 @@ if st.session_state.page == "Home":
 
         def format_option(opt):
             s = opt['symbol'].upper()
-            if s.endswith((".DE",".F",".SG",".MU",".AS",".MI",".PA",".VI")): w = "EUR"
+            if s.endswith((".DE", ".F", ".SG", ".MU", ".AS", ".MI", ".PA", ".VI")): w = "EUR"
             elif s.endswith(".L"): w = "GBP"
             elif "." not in s:    w = "USD"
             else:                  w = "Lokal"
@@ -538,14 +509,15 @@ if st.session_state.page == "Home":
                         eur_factor = get_eur_rate(currency)
                         price_nat  = t.history(period="1d")['Close'].iloc[-1]
                         price_eur  = price_nat * eur_factor
+                        # ── Einheitliche Schlüssel im Session-State ──
                         st.session_state.depot.append({
-                            "aktie":            sel['name'],
-                            "symbol":           sel['symbol'],
-                            "währung":          currency,          # ← neu gespeichert
-                            "kaufkurs":     price_eur,
-                            "aktueller Kurs": price_eur,
-                            "anteile":          1000 / price_eur,
-                            "RSI":              calculate_rsi(t.history(period="3mo"))
+                            "Aktie":              sel['name'],
+                            "Symbol":             sel['symbol'],
+                            "Währung":            currency,
+                            "Kaufkurs (€)":       price_eur,
+                            "Aktueller Kurs (€)": price_eur,
+                            "Anteile":            1000 / price_eur,
+                            "RSI":                calculate_rsi(t.history(period="3mo"))
                         })
                         save_depot()
                     st.success(f"{sel['name']} wurde ins Depot aufgenommen.")
@@ -563,57 +535,41 @@ if st.session_state.page == "Home":
         if st.session_state.depot:
             if st.button("Aktualisieren", use_container_width=True, type="primary"):
                 with st.spinner("Kurse werden aktualisiert …"):
-                    # --- IN DEINER AKTUALISIEREN-SCHLEIFE ---
-                    for i, p in enumerate(st.session_state.depot):
+                    for p in st.session_state.depot:
                         try:
-                            # Wir nutzen .get(), um sicherzugehen, dass wir den Wert finden, 
-                            # egal ob er groß oder klein geschrieben ist.
-                            ticker_symbol = p.get('Symbol') or p.get('symbol')
-                            waehrung = p.get('Währung') or p.get('waehrung') or 'EUR'
-                            
-                            t = yf.Ticker(ticker_symbol)
-                            eur_factor = get_eur_rate(waehrung)
-                            
-                            # Den neuen Kurs berechnen
-                            neuer_kurs_eur = t.history(period="1d")['Close'].iloc[-1] * eur_factor
-                            
-                            # WICHTIG: Wir schreiben den Wert in BEIDE Schlüssel, 
-                            # damit sowohl die Datenbank als auch die Website-Tabelle zufrieden sind.
-                            p['Aktueller Kurs (€)'] = neuer_kurs_eur
-                            p['aktueller_kurs'] = neuer_kurs_eur
-                            
-                            # RSI aktualisieren
-                            neuer_rsi = calculate_rsi(t.history(period="3mo"))
-                            p['RSI'] = neuer_rsi
-                            p['rsi'] = neuer_rsi
-                            
-                        except Exception as e:
-                            st.warning(f"Konnte {p.get('Aktie')} nicht aktualisieren: {e}")
-
-                    # Nach der Schleife alles in Supabase speichern
+                            t          = yf.Ticker(p['Symbol'])
+                            eur_factor = get_eur_rate(p.get('Währung', 'EUR'))
+                            p['Aktueller Kurs (€)'] = t.history(period="1d")['Close'].iloc[-1] * eur_factor
+                            p['RSI']                = calculate_rsi(t.history(period="3mo"))
+                        except:
+                            pass
                     save_depot()
-                    st.rerun()
+                st.rerun()
 
     if st.session_state.depot:
         hs = "font-size:0.72rem;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:#8e8e93;margin:0 0 0.3rem 0;"
-        h1,h2,h3,h4,h5,h6,h7,h8 = st.columns([2.4, 1.0, 1.1, 1.1, 1.1, 1.1, 0.9, 0.55])
+        h1, h2, h3, h4, h5, h6, h7, h8 = st.columns([2.4, 1.0, 1.1, 1.1, 1.1, 1.1, 0.9, 0.55])
         h1.markdown(f"<p style='{hs}'>Aktie</p>",      unsafe_allow_html=True)
         h2.markdown(f"<p style='{hs}'>Symbol</p>",     unsafe_allow_html=True)
         h3.markdown(f"<p style='{hs}'>Investiert</p>", unsafe_allow_html=True)
         h4.markdown(f"<p style='{hs}'>Kaufkurs</p>",   unsafe_allow_html=True)
         h5.markdown(f"<p style='{hs}'>Aktuell</p>",    unsafe_allow_html=True)
         h6.markdown(f"<p style='{hs}'>Differenz</p>",  unsafe_allow_html=True)
-        h7.markdown(f"<p style='{hs}'>RSI</p>",         unsafe_allow_html=True)
-        h8.markdown(f"<p style='{hs}'></p>",            unsafe_allow_html=True)
+        h7.markdown(f"<p style='{hs}'>RSI</p>",        unsafe_allow_html=True)
+        h8.markdown(f"<p style='{hs}'></p>",           unsafe_allow_html=True)
 
         to_delete = None
         for i, p in enumerate(st.session_state.depot):
-            diff       = (p["Aktueller Kurs (€)"] - p["Kaufkurs (€)"]) * p["Anteile"]
+            kaufkurs   = p.get("Kaufkurs (€)", 0)
+            aktuell    = p.get("Aktueller Kurs (€)", kaufkurs)
+            anteile    = p.get("Anteile", 0)
+            rsi        = p.get("RSI")
+            diff       = (aktuell - kaufkurs) * anteile
+            investiert = anteile * kaufkurs
+
             diff_color = "#3a9e7e" if diff >= 0 else "#e05c5c"
             diff_str   = f"+{diff:.2f} €" if diff >= 0 else f"{diff:.2f} €"
-            rsi        = p.get("RSI")
             rsi_str    = f"{rsi:.1f}" if rsi is not None and pd.notnull(rsi) else "–"
-            investiert = p["Anteile"] * p["Kaufkurs (€)"]
 
             if rsi is not None and pd.notnull(rsi):
                 if rsi > 70:   rsi_bg, rsi_col = "#fce8e8", "#c0392b"
@@ -625,10 +581,9 @@ if st.session_state.page == "Home":
             cell = "font-size:0.9rem;font-weight:500;color:#1d1d1f;margin:0;"
             rs   = "background:#fff;border-radius:14px;padding:0.85rem 1rem;box-shadow:0 1px 3px rgba(0,0,0,0.05),0 0 0 1px rgba(0,0,0,0.04);margin-bottom:0.5rem;"
 
-            c1,c2,c3,c4,c5,c6,c7,c8 = st.columns([2.4, 1.0, 1.1, 1.1, 1.1, 1.1, 0.9, 0.55])
-            c1.markdown(f"<div style='{rs}'><p style='{cell}'>{p['Aktie']}</p></div>", unsafe_allow_html=True)
-            c2.markdown(f"<div style='{rs}'><p style='{cell};color:#8e8e93;'>{p['Symbol']}</p></div>", unsafe_allow_html=True)
-            # ── Investiert-Badge ──
+            c1, c2, c3, c4, c5, c6, c7, c8 = st.columns([2.4, 1.0, 1.1, 1.1, 1.1, 1.1, 0.9, 0.55])
+            c1.markdown(f"<div style='{rs}'><p style='{cell}'>{p.get('Aktie','–')}</p></div>", unsafe_allow_html=True)
+            c2.markdown(f"<div style='{rs}'><p style='{cell};color:#8e8e93;'>{p.get('Symbol','–')}</p></div>", unsafe_allow_html=True)
             c3.markdown(f"""
                 <div style='{rs}'>
                     <p style='{cell}'>
@@ -638,13 +593,13 @@ if st.session_state.page == "Home":
                         </span>
                     </p>
                 </div>""", unsafe_allow_html=True)
-            c4.markdown(f"<div style='{rs}'><p style='{cell}'>{p['Kaufkurs (€)']:.2f} €</p></div>", unsafe_allow_html=True)
-            c5.markdown(f"<div style='{rs}'><p style='{cell}'>{p['Aktueller Kurs (€)']:.2f} €</p></div>", unsafe_allow_html=True)
+            c4.markdown(f"<div style='{rs}'><p style='{cell}'>{kaufkurs:.2f} €</p></div>", unsafe_allow_html=True)
+            c5.markdown(f"<div style='{rs}'><p style='{cell}'>{aktuell:.2f} €</p></div>", unsafe_allow_html=True)
             c6.markdown(f"<div style='{rs}'><p style='{cell};color:{diff_color};'>{diff_str}</p></div>", unsafe_allow_html=True)
             c7.markdown(f"<div style='{rs}'><p style='{cell};background:{rsi_bg};color:{rsi_col};border-radius:6px;padding:2px 6px;display:inline-block;'>{rsi_str}</p></div>", unsafe_allow_html=True)
             with c8:
                 st.markdown("<div style='height:0.62rem;'></div>", unsafe_allow_html=True)
-                if st.button("🗑️", key=f"del_{i}", help=f"{p['Aktie']} löschen"):
+                if st.button("🗑️", key=f"del_{i}", help=f"{p.get('Aktie','Position')} löschen"):
                     to_delete = i
 
         if to_delete is not None:
@@ -652,8 +607,8 @@ if st.session_state.page == "Home":
             save_depot()
             st.rerun()
 
-        total_diff     = sum((p["Aktueller Kurs (€)"] - p["Kaufkurs (€)"]) * p["Anteile"] for p in st.session_state.depot)
-        total_invested = sum(p["Anteile"] * p["Kaufkurs (€)"] for p in st.session_state.depot)
+        total_diff     = sum((p.get("Aktueller Kurs (€)", 0) - p.get("Kaufkurs (€)", 0)) * p.get("Anteile", 0) for p in st.session_state.depot)
+        total_invested = sum(p.get("Anteile", 0) * p.get("Kaufkurs (€)", 0) for p in st.session_state.depot)
         pct   = (total_diff / total_invested) * 100 if total_invested else 0
         color = "#3a9e7e" if total_diff >= 0 else "#e05c5c"
         sign  = "+" if total_diff >= 0 else ""
@@ -664,7 +619,7 @@ if st.session_state.page == "Home":
                         margin-top:1rem;display:flex;align-items:center;gap:2.5rem;">
                 <div>
                     <p style="font-size:0.72rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#8e8e93;margin:0;">Gesamtinvestiert</p>
-                    <p style="font-size:1.6rem;font-weight:600;color:#1d1d1f;letter-spacing:-0.02em;margin:0.2rem 0 0 0;">{f"{total_invested:,.0f} ".replace(',', '.')}€</p>
+                    <p style="font-size:1.6rem;font-weight:600;color:#1d1d1f;letter-spacing:-0.02em;margin:0.2rem 0 0 0;">{f"{total_invested:,.0f}".replace(',', '.')} €</p>
                 </div>
                 <div>
                     <p style="font-size:0.72rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#8e8e93;margin:0;">Gesamtergebnis</p>
@@ -690,12 +645,10 @@ if st.session_state.page == "Home":
             </div>
         """, unsafe_allow_html=True)
 
-
 # ═══════════════════════════════════════════════════════════
 # WETTER
 # ═══════════════════════════════════════════════════════════
 elif st.session_state.page == "Wetter":
-
     st.markdown("""
         <div style="margin-bottom:1.6rem;">
             <p style="font-size:0.72rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#8e8e93;margin:0 0 0.3rem 0;">Wetter</p>
@@ -712,12 +665,10 @@ elif st.session_state.page == "Wetter":
         </div>
     """, unsafe_allow_html=True)
 
-
 # ═══════════════════════════════════════════════════════════
 # ÜBER UNS
 # ═══════════════════════════════════════════════════════════
 elif st.session_state.page == "Über uns":
-
     st.markdown("""
         <div style="margin-bottom:1.6rem;">
             <p style="font-size:0.72rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#8e8e93;margin:0 0 0.3rem 0;">Das Team</p>
@@ -726,13 +677,12 @@ elif st.session_state.page == "Über uns":
     """, unsafe_allow_html=True)
     st.divider()
 
-    # ── Team-Daten – Namen, Farben und Texte hier anpassen ──
     team = [
         {
             "name":      "Max Mustermann",
             "farbe":     "#3a9e7e",
             "initialen": "MM",
-            "bild":      None,   # echtes Foto: URL als String eintragen, z. B. "https://…/foto.jpg"
+            "bild":      None,
             "bio": (
                 "Max ist seit über zehn Jahren im Finanzbereich tätig und hat eine Leidenschaft "
                 "für datengetriebene Anlagestrategien. Er studierte Wirtschaftswissenschaften in "
@@ -777,7 +727,6 @@ elif st.session_state.page == "Über uns":
                                 justify-content:center;font-size:1.7rem;font-weight:700;color:#fff;">
                         {m['initialen']}
                     </div>"""
-
             st.markdown(f"""
                 <div style="background:#fff;border-radius:20px;padding:2.2rem 1.8rem 2rem 1.8rem;
                             box-shadow:0 1px 3px rgba(0,0,0,0.06),0 0 0 1px rgba(0,0,0,0.04);
