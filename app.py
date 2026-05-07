@@ -9,7 +9,7 @@ import datetime
 import plotly.graph_objects as go
 import os
 # pip install supabase
-from supabase import create_client # type: ignore
+from supabase import create_client 
 
 @st.cache_resource
 def get_supabase():
