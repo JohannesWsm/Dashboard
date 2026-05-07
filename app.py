@@ -515,12 +515,12 @@ if st.session_state.page == "Home":
                         price_nat  = t.history(period="1d")['Close'].iloc[-1]
                         price_eur  = price_nat * eur_factor
                         st.session_state.depot.append({
-                            "Aktie":            sel['name'],
-                            "Symbol":           sel['symbol'],
-                            "Währung":          currency,          # ← neu gespeichert
-                            "Kaufkurs (€)":     price_eur,
-                            "Aktueller Kurs (€)": price_eur,
-                            "Anteile":          1000 / price_eur,
+                            "aktie":            sel['name'],
+                            "symbol":           sel['symbol'],
+                            "währung":          currency,          # ← neu gespeichert
+                            "kaufkurs":     price_eur,
+                            "aktueller Kurs": price_eur,
+                            "anteile":          1000 / price_eur,
                             "RSI":              calculate_rsi(t.history(period="3mo"))
                         })
                         save_depot()
